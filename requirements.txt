@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+transformers
+torch
+pandas
+scikit-learn
+newspaper3k
+beautifulsoup4
+pypdf2
+python-docx
+aiohttp
+python-multipart
+sh
+lime
+matplotlib
+seaborn
+nltk
