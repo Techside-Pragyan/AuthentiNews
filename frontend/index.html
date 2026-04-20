@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuthentiNews | AI-Powered Fake News Detection</title>
+    <meta name="description" content="State-of-the-art misinformation detection using Transformer-based AI and NLP. Verify news reliability with confidence.">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AuthentiNews</h1>
+            <p class="subtitle">AI-powered misinformation detection system</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <div class="tabs">
+                    <button class="tab-btn active" id="text-tab" onclick="switchTab('text')">Text Input</button>
+                    <button class="tab-btn" id="url-tab" onclick="switchTab('url')">URL Link</button>
+                    <button class="tab-btn" id="file-tab" onclick="switchTab('file')">File Upload</button>
+                </div>
+
+                <!-- Text Input Section -->
+                <div id="text-section" class="input-layer">
+                    <div class="input-group">
+                        <textarea id="text-input" placeholder="Paste the news article or text here..."></textarea>
+                    </div>
+                </div>
+
+                <!-- URL Input Section -->
+                <div id="url-section" class="input-layer" style="display: none;">
+                    <div class="input-group">
+                        <input type="text" id="url-input" placeholder="https://example.com/news-article">
+                    </div>
+                </div>
+
+                <!-- File Input Section -->
+                <div id="file-section" class="input-layer" style="display: none;">
+                    <div class="input-group">
+                        <div style="border: 2px dashed var(--glass-border); padding: 3rem; text-align: center; border-radius: 1rem; cursor: pointer;" onclick="document.getElementById('file-input').click()">
+                            <p id="file-status">Click to upload (PDF, DOCX, TXT)</p>
+                            <input type="file" id="file-input" style="display: none;" accept=".pdf,.docx,.txt" onchange="handleFileSelect(event)">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-primary" id="analyze-btn" onclick="analyzeContent()">
+                    <span id="btn-text">Analyze Accuracy</span>
+                    <div class="loader" id="loader"></div>
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-container" id="results">
+                <div class="card prediction-card">
+                    <div id="prediction-label" class="prediction-label">Checking...</div>
+                    
+                    <div class="score-gauge">
+                        <svg class="gauge-svg" width="200" height="200">
+                            <circle class="gauge-bg" cx="100" cy="100" r="90"></circle>
+                            <circle class="gauge-fill" id="gauge-fill" cx="100" cy="100" r="90" stroke-dasharray="565.48" stroke-dashoffset="565.48"></circle>
+                        </svg>
+                        <div class="score-text" id="confidence-score">0%</div>
+                    </div>
+
+                    <p id="prediction-desc" class="subtitle">Confidence Score</p>
+
+                    <div class="explanation-section">
+                        <h3>Model Insights</h3>
+                        <p id="article-title" class="article-info"></p>
+                        <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.95rem;">
+                            Based on our linguistic analysis, this content shows features of <span id="verdict-detail">...</span>.
+                        </p>
+                        <div style="margin-top: 1.5rem;">
+                            <h4>Potentially Suspicious Phrases</h4>
+                            <div class="suspicious-phrases" id="suspicious-phrases">
+                                <!-- Tags will be injected here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let currentTab = 'text';
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tab + '-tab').classList.add('active');
+            
+            document.querySelectorAll('.input-layer').forEach(layer => layer.style.display = 'none');
+            document.getElementById(tab + '-section').style.display = 'block';
+        }
+
+        function handleFileSelect(event) {
+            const fileName = event.target.files[0] ? event.target.files[0].name : 'Click to upload (PDF, DOCX, TXT)';
+            document.getElementById('file-status').innerText = fileName;
+        }
+
+        async function analyzeContent() {
+            const btn = document.getElementById('analyze-btn');
+            const loader = document.getElementById('loader');
+            const btnText = document.getElementById('btn-text');
+            const resultsDiv = document.getElementById('results');
+
+            // UI Reset
+            btn.disabled = true;
+            loader.style.display = 'block';
+            btnText.style.display = 'none';
+            resultsDiv.style.display = 'none';
+
+            try {
+                let response;
+                let payload;
+
+                if (currentTab === 'text') {
+                    const text = document.getElementById('text-input').value;
+                    if (!text) throw new Error("Please enter some text");
+                    response = await fetch('http://localhost:8000/predict/text', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text })
+                    });
+                } else if (currentTab === 'url') {
+                    const url = document.getElementById('url-input').value;
+                    if (!url) throw new Error("Please enter a URL");
+                    response = await fetch('http://localhost:8000/predict/url', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url })
+                    });
+                } else if (currentTab === 'file') {
+                    const fileInput = document.getElementById('file-input');
+                    if (!fileInput.files[0]) throw new Error("Please upload a file");
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+                    response = await fetch('http://localhost:8000/predict/file', {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || "Analysis failed");
+                displayResults(data);
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                btn.disabled = false;
+                loader.style.display = 'none';
+                btnText.style.display = 'block';
+            }
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            const label = document.getElementById('prediction-label');
+            const confidenceText = document.getElementById('confidence-score');
+            const gaugeFill = document.getElementById('gauge-fill');
+            const verdictDetail = document.getElementById('verdict-detail');
+            const phrasesDiv = document.getElementById('suspicious-phrases');
+            const articleTitle = document.getElementById('article-title');
+
+            resultsDiv.style.display = 'block';
+            
+            // Set Prediction
+            label.innerText = data.prediction === 'REAL' ? '✅ Verified Real' : '❌ Likely Fake';
+            label.className = 'prediction-label ' + (data.prediction === 'REAL' ? 'real' : 'fake');
+            
+            // Set Confidence and Gauge
+            const confidence = data.confidence;
+            confidenceText.innerText = confidence + '%';
+            
+            // Gauge calculation
+            const circumference = 2 * Math.PI * 90;
+            const offset = circumference - (confidence / 100) * circumference;
+            gaugeFill.style.strokeDashoffset = offset;
+            gaugeFill.style.stroke = data.prediction === 'REAL' ? '#22c55e' : '#ef4444';
+
+            // Set Insights
+            verdictDetail.innerText = data.prediction === 'REAL' 
+                ? 'authentic patterns and verified source credibility' 
+                : 'misleading indicators and linguistic inconsistencies found in common misinformation';
+            
+            // Set Title if URL
+            if (data.article_info) {
+                articleTitle.innerText = "Analyzed: " + data.article_info.title;
+            } else {
+                articleTitle.innerText = "";
+            }
+
+            // Set Suspicious Phrases
+            phrasesDiv.innerHTML = '';
+            if (data.suspicious_phrases) {
+                data.suspicious_phrases.forEach(phrase => {
+                    const tag = document.createElement('span');
+                    tag.className = 'phrase-tag';
+                    tag.innerText = phrase;
+                    phrasesDiv.appendChild(tag);
+                });
+            }
+
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
